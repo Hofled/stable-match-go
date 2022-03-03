@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Hofled/stable-matching-go/types"
 )
@@ -103,6 +104,14 @@ func Propose(man *list.Element, woman *types.Woman) *list.Element {
 	return nil
 }
 
+func TrackTime() func() time.Duration {
+	start := time.Now()
+	// returns the duration since we started tracking time
+	return func() time.Duration {
+		return time.Since(start)
+	}
+}
+
 func main() {
 	fmt.Println("Men:")
 	for m := UnmarriedMen.Front(); m != nil; m = m.Next() {
@@ -113,6 +122,9 @@ func main() {
 	for _, w := range Women {
 		fmt.Println(w)
 	}
+
+	// start measuring time
+	endTrackingFunc := TrackTime()
 
 	m := UnmarriedMen.Front()
 	for m != nil {
@@ -125,6 +137,9 @@ func main() {
 		}
 	}
 
+	// stop meassuring time
+	duration := endTrackingFunc()
+
 	// print all matches after the stable matching completed
 	fmt.Println("Matches:")
 	fmt.Println("W <-> M")
@@ -132,4 +147,6 @@ func main() {
 	for _, w := range Women {
 		fmt.Printf("%d <-> %d\n", w.ID, w.Husband.ID)
 	}
+
+	log.Println(fmt.Sprintf("%s took %s", "stable matching", duration))
 }
