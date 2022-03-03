@@ -1,9 +1,15 @@
 package types
 
+import "fmt"
+
 type Person struct {
 	ID int
 	// the index specifies the ID of the person the ranking belongs to
 	Preferences []int
+}
+
+func (p Person) String() string {
+	return fmt.Sprintf("ID: %d, Preferences: %v", p.ID, p.Preferences)
 }
 
 type Man struct {

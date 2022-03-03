@@ -106,12 +106,12 @@ func Propose(man *list.Element, woman *types.Woman) *list.Element {
 func main() {
 	fmt.Println("Men:")
 	for m := UnmarriedMen.Front(); m != nil; m = m.Next() {
-		fmt.Printf("m.Value: %v\n", m.Value)
+		fmt.Println(m.Value)
 	}
 
 	fmt.Println("Women:")
 	for _, w := range Women {
-		fmt.Printf("w.Value: %v\n", w)
+		fmt.Println(w)
 	}
 
 	m := UnmarriedMen.Front()
