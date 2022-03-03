@@ -17,6 +17,8 @@ import (
 	"github.com/Hofled/stable-matching-go/types"
 )
 
+const default_group_size = 5
+
 var (
 	UnmarriedMen *list.List
 	Women        []*types.Woman
@@ -25,13 +27,20 @@ var (
 func init() {
 	UnmarriedMen = list.New()
 
-	groupSizeArg := os.Args[1]
-	fmt.Printf("Group size: %s\n", groupSizeArg)
-	// get each group's size
-	groupSize, err := strconv.Atoi(groupSizeArg)
-	if err != nil {
-		log.Fatal(err)
+	var groupSize int
+
+	if len(os.Args) < 2 {
+		groupSize = default_group_size
+	} else {
+		groupSizeArg := os.Args[1]
+		// get each group's size
+		var err error
+		groupSize, err = strconv.Atoi(groupSizeArg)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+	fmt.Printf("Group size: %d\n", groupSize)
 
 	Women = make([]*types.Woman, groupSize)
 
