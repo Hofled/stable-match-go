@@ -8,13 +8,14 @@ package main
 
 import (
 	"container/list"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
-	"os"
-	"strconv"
+	"sync"
 	"time"
 
+	"github.com/Hofled/stable-matching-go/channels"
 	"github.com/Hofled/stable-matching-go/types"
 )
 
@@ -23,62 +24,13 @@ const default_group_size = 5
 var (
 	UnmarriedMen *list.List
 	Women        []*types.Woman
+	Verbose      bool
+	GroupSize    int
 )
 
 func init() {
-	UnmarriedMen = list.New()
-
-	var groupSize int
-
-	if len(os.Args) < 2 {
-		groupSize = default_group_size
-	} else {
-		groupSizeArg := os.Args[1]
-		// get each group's size
-		var err error
-		groupSize, err = strconv.Atoi(groupSizeArg)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	fmt.Printf("Group size: %d\n", groupSize)
-
-	Women = make([]*types.Woman, groupSize)
-
-	// generate men
-	for i := 0; i < groupSize; i++ {
-		man := types.NewMan(i, groupSize)
-		usedRankingsMap := make(map[int]bool, groupSize)
-		// generate random preferences for the i'th man
-		for j := 0; j < groupSize; j++ {
-			man.Preferences[j] = UniqueRandIntInRange(usedRankingsMap, groupSize)
-		}
-		// add newly created man to the men list
-		UnmarriedMen.PushBack(man)
-	}
-
-	// generate women
-	for i := 0; i < groupSize; i++ {
-		// generate preferences for the i'th woman
-		woman := types.NewWoman(i, groupSize)
-		usedRankingsMap := make(map[int]bool, groupSize)
-		// generate random preferences for the i'th man
-		for j := 0; j < groupSize; j++ {
-			woman.Preferences[j] = UniqueRandIntInRange(usedRankingsMap, groupSize)
-		}
-		// add newly created man to the men list
-		Women[i] = woman
-	}
-}
-
-func UniqueRandIntInRange(usedValsMap map[int]bool, max int) int {
-	val := rand.Intn(max)
-	for usedValsMap[val] {
-		val = rand.Intn(max)
-	}
-	// insert used val into the used vals map
-	usedValsMap[val] = true
-	return val
+	flag.BoolVar(&Verbose, "v", false, "Whether to print the generated groups info")
+	flag.IntVar(&GroupSize, "n", default_group_size, "The group size for each gender")
 }
 
 // returns a pointer to the element in the unmarried men list that needs to be removed (newly married),
@@ -112,16 +64,78 @@ func TrackTime() func() time.Duration {
 	}
 }
 
-func main() {
-	fmt.Println("Men:")
-	for m := UnmarriedMen.Front(); m != nil; m = m.Next() {
-		fmt.Println(m.Value)
+func generateGroups() {
+	UnmarriedMen = list.New()
+
+	fmt.Printf("Group size: %d\n", GroupSize)
+
+	Women = make([]*types.Woman, GroupSize)
+
+	var menGeneration sync.WaitGroup
+	menGenerationChan := make(chan interface{})
+	var womenGeneration sync.WaitGroup
+	womenGenerationChan := make(chan interface{})
+
+	mergedMenChan := channels.MergedChannel{OnClosed: func() { fmt.Println("Finished men generation") }, ReceivingChan: menGenerationChan}
+	mergedWomenChan := channels.MergedChannel{OnClosed: func() { fmt.Println("Finished women generation") }, ReceivingChan: womenGenerationChan}
+
+	genFinished := channels.Merge(mergedMenChan, mergedWomenChan)
+
+	menGeneration.Add(GroupSize)
+	// generate men in concurrent routines
+	for i := 0; i < GroupSize; i++ {
+		go func(index int) {
+			man := types.NewMan(index, GroupSize)
+			// generate random preferences for the i'th man
+			man.Preferences = rand.Perm(GroupSize)
+			// add newly created man to the men list
+			UnmarriedMen.PushBack(man)
+			menGeneration.Done()
+		}(i)
 	}
 
-	fmt.Println("Women:")
-	for _, w := range Women {
-		fmt.Println(w)
+	womenGeneration.Add(GroupSize)
+	// generate women
+	for i := 0; i < GroupSize; i++ {
+		go func(index int) {
+			// generate preferences for the i'th woman
+			woman := types.NewWoman(index, GroupSize)
+			// generate random preferences for the i'th man
+			woman.Preferences = rand.Perm(GroupSize)
+			// add newly created man to the men list
+			Women[index] = woman
+			womenGeneration.Done()
+		}(i)
 	}
+
+	channels.CloseWhenDone(&menGeneration, menGenerationChan)
+	channels.CloseWhenDone(&womenGeneration, womenGenerationChan)
+
+	fmt.Println("Waiting for generation routines to complete")
+
+	genFinished.Wait()
+
+	fmt.Println("Generation completed")
+}
+
+func main() {
+	flag.Parse()
+
+	generateGroups()
+
+	if Verbose {
+		fmt.Println("Men:")
+		for m := UnmarriedMen.Front(); m != nil; m = m.Next() {
+			fmt.Println(m.Value)
+		}
+
+		fmt.Println("Women:")
+		for _, w := range Women {
+			fmt.Println(w)
+		}
+	}
+
+	fmt.Println("Starting matching process...")
 
 	// start measuring time
 	endTrackingFunc := TrackTime()
@@ -140,12 +154,14 @@ func main() {
 	// stop meassuring time
 	duration := endTrackingFunc()
 
-	// print all matches after the stable matching completed
-	fmt.Println("Matches:")
-	fmt.Println("W <-> M")
-	fmt.Println("=======")
-	for _, w := range Women {
-		fmt.Printf("%d <-> %d\n", w.ID, w.Husband.ID)
+	if Verbose {
+		// print all matches after the stable matching completed
+		fmt.Println("Matches:")
+		fmt.Println("W <-> M")
+		fmt.Println("=======")
+		for _, w := range Women {
+			fmt.Printf("%d <-> %d\n", w.ID, w.Husband.ID)
+		}
 	}
 
 	log.Println(fmt.Sprintf("%s took %s", "stable matching", duration))
