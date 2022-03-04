@@ -17,6 +17,7 @@ import (
 
 	"github.com/Hofled/stable-matching-go/channels"
 	"github.com/Hofled/stable-matching-go/types"
+	"github.com/gosuri/uiprogress"
 )
 
 const default_group_size = 5
@@ -76,11 +77,16 @@ func generateGroups() {
 	var womenGeneration sync.WaitGroup
 	womenGenerationChan := make(chan interface{})
 
-	mergedMenChan := channels.MergedChannel{OnClosed: func() { fmt.Println("Finished men generation") }, ReceivingChan: menGenerationChan}
-	mergedWomenChan := channels.MergedChannel{OnClosed: func() { fmt.Println("Finished women generation") }, ReceivingChan: womenGenerationChan}
+	mergedMenChan := channels.MergedChannel{OnClosed: func() {}, ReceivingChan: menGenerationChan}
+	mergedWomenChan := channels.MergedChannel{OnClosed: func() {}, ReceivingChan: womenGenerationChan}
 
 	genFinished := channels.Merge(mergedMenChan, mergedWomenChan)
 
+	fmt.Println("Generating preferences for men & women:")
+
+	uiprogress.Start()
+
+	menGenBar := uiprogress.AddBar(GroupSize).AppendCompleted().PrependFunc(generationPrependFunc("Men gen"))
 	menGeneration.Add(GroupSize)
 	// generate men in concurrent routines
 	for i := 0; i < GroupSize; i++ {
@@ -90,10 +96,12 @@ func generateGroups() {
 			man.Preferences = rand.Perm(GroupSize)
 			// add newly created man to the men list
 			UnmarriedMen.PushBack(man)
+			menGenBar.Incr()
 			menGeneration.Done()
 		}(i)
 	}
 
+	womenGenBar := uiprogress.AddBar(GroupSize).AppendCompleted().PrependFunc(generationPrependFunc("Women gen"))
 	womenGeneration.Add(GroupSize)
 	// generate women
 	for i := 0; i < GroupSize; i++ {
@@ -104,6 +112,7 @@ func generateGroups() {
 			woman.Preferences = rand.Perm(GroupSize)
 			// add newly created man to the men list
 			Women[index] = woman
+			womenGenBar.Incr()
 			womenGeneration.Done()
 		}(i)
 	}
@@ -111,11 +120,14 @@ func generateGroups() {
 	channels.CloseWhenDone(&menGeneration, menGenerationChan)
 	channels.CloseWhenDone(&womenGeneration, womenGenerationChan)
 
-	fmt.Println("Waiting for generation routines to complete")
-
 	genFinished.Wait()
+	uiprogress.Stop()
+}
 
-	fmt.Println("Generation completed")
+func generationPrependFunc(name string) uiprogress.DecoratorFunc {
+	return func(b *uiprogress.Bar) string {
+		return fmt.Sprintf("[%s]: %d/%d", name, b.Current(), b.Total)
+	}
 }
 
 func main() {
