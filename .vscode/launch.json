@@ -12,7 +12,6 @@
             "program": "${fileDirname}",
             "args": [
                 "--v=1",
-                "--n=10"
             ],
         }
     ]

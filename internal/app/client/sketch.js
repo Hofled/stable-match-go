@@ -102,14 +102,14 @@ function setup() {
   });
 
   socket.on("update-people", function (data) {
-    ballMargin = ballRadius * 2;
-    maxBallsPerRow = Math.floor(canvasWidth / (ballRadius + ballMargin));
+    ballMargin = Math.floor(canvasWidth / data.Men.length) - ballRadius;
+    maxBallsPerRow = Math.floor(canvasWidth / (ballMargin + ballRadius));
     // iterate men
     men.clear();
     data.Men.forEach(m => {
       let rowPos = (m.ID % maxBallsPerRow);
       let columnPos = (Math.floor(m.ID / maxBallsPerRow));
-      m.pos = { x: (rowPos * ballMargin) + ((rowPos + 1) * ballRadius), y: ballRadius + (columnPos * ((ballMargin / 2) + ballRadius)) };
+      m.pos = { x: (rowPos * ballMargin) + ((rowPos + 1) * ballRadius), y: ballRadius + (columnPos * (ballRadius)) };
       men.set(m.ID, m);
     });
     // iterate women
@@ -117,7 +117,7 @@ function setup() {
     data.Women.forEach(w => {
       let rowPos = (w.ID % maxBallsPerRow);
       let columnPos = (Math.floor(w.ID / maxBallsPerRow));
-      w.pos = { x: (rowPos * ballMargin) + ((rowPos + 1) * ballRadius), y: (canvasHeight - ballRadius) - (columnPos * (ballRadius + (ballMargin / 2))) };
+      w.pos = { x: (rowPos * ballMargin) + ((rowPos + 1) * ballRadius), y: (canvasHeight - ballRadius) - (columnPos * (ballRadius)) };
       women.set(w.ID, w);
     });
   });
