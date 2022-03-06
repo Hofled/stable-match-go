@@ -7,9 +7,7 @@ import (
 	"sync"
 
 	"github.com/Hofled/stable-matching-go/internal/app/channels"
-	"github.com/Hofled/stable-matching-go/internal/app/server"
 	"github.com/Hofled/stable-matching-go/internal/app/types"
-	socketio "github.com/googollee/go-socket.io"
 	"github.com/gosuri/uiprogress"
 )
 
@@ -52,13 +50,13 @@ func generationPrependFunc(name string) uiprogress.DecoratorFunc {
 	}
 }
 
-func GenerateGroups(s *socketio.Server, groupSize int, verbose bool) (unmarriedMen *list.List, women []*types.Woman) {
+func GenerateGroups(groupSize int, verbose bool) (unmarriedMen *list.List, unmarriedMenSlice []*types.Man, women []*types.Woman) {
 	unmarriedMen = list.New()
 
 	fmt.Printf("Group size: %d\n", groupSize)
 
 	women = make([]*types.Woman, groupSize)
-	tmpMen := make([]*types.Man, groupSize)
+	unmarriedMenSlice = make([]*types.Man, groupSize)
 
 	var menGeneration sync.WaitGroup
 	menGenerationChan := make(chan interface{})
@@ -85,7 +83,7 @@ func GenerateGroups(s *socketio.Server, groupSize int, verbose bool) (unmarriedM
 			man.Preferences = rand.Perm(groupSize)
 			// add newly created man to the men list
 			unmarriedMen.PushBack(man)
-			tmpMen[index] = man
+			unmarriedMenSlice[index] = man
 			menGenBar.Incr()
 			menGeneration.Done()
 		}(i)
@@ -113,8 +111,6 @@ func GenerateGroups(s *socketio.Server, groupSize int, verbose bool) (unmarriedM
 	genFinished.Wait()
 	p.Stop()
 
-	server.UpdatePeople(s, tmpMen, women)
-
 	if verbose {
 		fmt.Println("Men:")
 		for m := unmarriedMen.Front(); m != nil; m = m.Next() {
@@ -127,7 +123,7 @@ func GenerateGroups(s *socketio.Server, groupSize int, verbose bool) (unmarriedM
 		}
 	}
 
-	return unmarriedMen, women
+	return unmarriedMen, unmarriedMenSlice, women
 }
 
 func StableMatch(unmarriedMen *list.List, women []*types.Woman) *MatchingHistory {

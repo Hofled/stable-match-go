@@ -48,7 +48,9 @@ func main() {
 
 	// setup handlers
 	server.SetupHandler(s, "/", "generate", func(c socketio.Conn, groupSize int) {
-		UnmarriedMen, Women = algorithm.GenerateGroups(s, groupSize, Verbose)
+		var unmarriedMenSlice []*types.Man
+		UnmarriedMen, unmarriedMenSlice, Women = algorithm.GenerateGroups(groupSize, Verbose)
+		server.UpdatePeople(s, unmarriedMenSlice, Women)
 	})
 	server.SetupHandler(s, "/", "stable-match", func(c socketio.Conn) {
 		fmt.Println("Starting matching process...")
