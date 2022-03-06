@@ -1,7 +1,7 @@
 /*
 
 Performs stable matching between a group of `n` men and women.
-Preference ranking is in ascending order, which means lower value has a higher preference.
+Preference ranking is in descending order, which means higher value means a higher preference.
 
 */
 package main
@@ -21,18 +21,14 @@ import (
 	socketio "github.com/googollee/go-socket.io"
 )
 
-const default_group_size = 5
-
 var (
 	Verbose      bool
-	GroupSize    int
 	UnmarriedMen *list.List
 	Women        []*types.Woman
 )
 
 func init() {
 	flag.BoolVar(&Verbose, "v", false, "Whether to print the generated groups info")
-	flag.IntVar(&GroupSize, "n", default_group_size, "The group size for each gender")
 }
 
 func TrackTime() func() time.Duration {
@@ -58,7 +54,8 @@ func main() {
 		fmt.Println("Starting matching process...")
 		// start measuring time
 		endTrackingFunc := TrackTime()
-		algorithm.StableMatch(UnmarriedMen, Women)
+		history := algorithm.StableMatch(UnmarriedMen, Women)
+		c.Emit("stable-match-history", history)
 		// stop meassuring time
 		duration := endTrackingFunc()
 		// emit duration of time
@@ -69,10 +66,10 @@ func main() {
 		if Verbose {
 			// print all matches after the stable matching completed
 			fmt.Println("Matches:")
-			fmt.Println("W <-> M")
+			fmt.Println("W <=> M")
 			fmt.Println("=======")
 			for _, w := range Women {
-				fmt.Printf("%d <-> %d\n", w.ID, w.Husband.ID)
+				fmt.Printf("%d <=> %d\n", w.ID, w.Husband.ID)
 			}
 		}
 

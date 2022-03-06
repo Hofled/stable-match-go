@@ -6,3 +6,9 @@ html, body {
 canvas {
   display: block;
 }
+
+.flex-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}

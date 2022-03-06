@@ -45,7 +45,7 @@ func Serve(port int) *socketio.Server {
 
 	http.Handle("/socket.io/", server)
 	http.Handle("/", http.FileServer(http.Dir("../../internal/app/client")))
-	fmt.Printf("Serving on http://localhost:%d...\n", port)
+	fmt.Printf("Serving client on http://localhost:%d...\n", port)
 	// serve
 	go func() {
 		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))

@@ -13,6 +13,16 @@ import (
 	"github.com/gosuri/uiprogress"
 )
 
+type MatchingStep struct {
+	HusbandID   int
+	WifeID      int
+	UnmarriedID int
+}
+
+type MatchingHistory struct {
+	Steps []MatchingStep
+}
+
 // returns a pointer to the element in the unmarried men list that needs to be removed (newly married),
 // if non needs to be removed, returns nil
 func propose(man *list.Element, unmarriedMen *list.List, woman *types.Woman) *list.Element {
@@ -24,7 +34,7 @@ func propose(man *list.Element, unmarriedMen *list.List, woman *types.Woman) *li
 		return man
 	} else {
 		// if the man proposing has a higher ranking than the current husband, marry him instead
-		if woman.Preferences[castedMan.ID] < woman.Preferences[woman.Husband.ID] {
+		if woman.Preferences[castedMan.ID] > woman.Preferences[woman.Husband.ID] {
 			// add the current husband to the unmarried man linked list
 			unmarriedMen.PushBack(woman.Husband)
 			woman.Husband = castedMan
@@ -120,15 +130,24 @@ func GenerateGroups(s *socketio.Server, groupSize int, verbose bool) (unmarriedM
 	return unmarriedMen, women
 }
 
-func StableMatch(unmarriedMen *list.List, women []*types.Woman) {
+func StableMatch(unmarriedMen *list.List, women []*types.Woman) *MatchingHistory {
+	history := MatchingHistory{}
+
 	m := unmarriedMen.Front()
 	for m != nil {
-		castedMan := m.Value.(*types.Man)
-		womanID := castedMan.Preferences[castedMan.ProposeIndex]
+		proposingMan := m.Value.(*types.Man)
+		womanID := proposingMan.Preferences[proposingMan.ProposeIndex]
+		currentHusbandID := -1
+		if women[womanID].Husband != nil {
+			currentHusbandID = women[womanID].Husband.ID
+		}
 		newlyMarriedMan := propose(m, unmarriedMen, women[womanID])
 		if newlyMarriedMan != nil {
 			m = m.Next()
 			unmarriedMen.Remove(newlyMarriedMan)
+			history.Steps = append(history.Steps, MatchingStep{WifeID: womanID, HusbandID: proposingMan.ID, UnmarriedID: currentHusbandID})
 		}
 	}
+
+	return &history
 }
